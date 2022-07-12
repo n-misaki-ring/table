@@ -41,7 +41,7 @@ function Table(props: Props) {
     return Array.from(Array(end - start).keys())
       .map((index) => start + index)
       .every((index) => checked.includes(index));
-  }, [checked]);
+  }, [checked, currentPage]);
 
   /**
    * チェックイベント
