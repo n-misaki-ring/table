@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useMemo, useState } from "react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 export type Data = any;
@@ -16,6 +16,7 @@ type Props = {
   checkboxSelection?: boolean;
   isNoView?: boolean;
   pageSize?: number;
+  fixedColumns?: string[];
   onChangeCheck?: (dataSource: DataSource[]) => void;
 };
 
@@ -26,12 +27,13 @@ function Table(props: Props) {
     checkboxSelection = false,
     isNoView = false,
     pageSize = 10,
+    fixedColumns = [],
   } = props;
 
   const [currentPage, setCurrentPage] = useState(0);
   const pageMax = Math.ceil(dataSources.length / pageSize);
   const [checked, setChecked] = useState<number[]>([]);
-
+  const tableRef = useRef<HTMLTableElement>(null);
   /**
    * 全チェック判定
    */
@@ -41,7 +43,7 @@ function Table(props: Props) {
     return Array.from(Array(end - start).keys())
       .map((index) => start + index)
       .every((index) => checked.includes(index));
-  }, [checked, currentPage]);
+  }, [checked, currentPage, pageSize, dataSources.length]);
 
   /**
    * チェックイベント
@@ -62,6 +64,23 @@ function Table(props: Props) {
     );
   };
 
+  useEffect(() => {
+    if (fixedColumns.length) {
+      Array.from(tableRef.current?.getElementsByTagName("tr") || []).forEach(
+        (tr: HTMLTableRowElement) => {
+          const fixedElements = Array.from(
+            tr.getElementsByClassName("fixed")
+          ) as HTMLElement[];
+          let offset = 0;
+          fixedElements.forEach((fixedElement) => {
+            fixedElement.style.left = `${offset}px`;
+            offset += fixedElement.clientWidth + 4;
+          });
+        }
+      );
+    }
+  }, []);
+
   /**
    * チェック変更通知イベント
    */
@@ -80,54 +99,78 @@ function Table(props: Props) {
       <p>現在のページ：{currentPage}</p>
       <p>選択中：{JSON.stringify(checked)}</p>
 
-      <table>
-        <tr>
-          {checkboxSelection && (
-            <th>
-              <input
-                type={"checkbox"}
-                checked={allCheck}
-                onChange={(e) => {
-                  onChangeCheck(e.target.checked, -1);
-                }}
-              />
-            </th>
-          )}
-          {isNoView && <th>#</th>}
-          {columns.map((headerColumn) => (
-            <th key={headerColumn.key}>{headerColumn.title}</th>
-          ))}
-        </tr>
-        {dataSources
-          .slice(currentPage * pageSize, currentPage * pageSize + pageSize)
-          .map((dataSource, dataIndex) => (
-            <tr>
-              {checkboxSelection && (
-                <td>
-                  <input
-                    type={"checkbox"}
-                    checked={checked.includes(
-                      currentPage * pageSize + dataIndex
-                    )}
-                    onChange={(e) => {
-                      onChangeCheck(
-                        e.target.checked,
+      <table ref={tableRef}>
+        <thead>
+          <tr>
+            {checkboxSelection && (
+              <th className={fixedColumns.includes("checkbox") ? "fixed" : ""}>
+                <input
+                  type={"checkbox"}
+                  checked={allCheck}
+                  onChange={(e) => {
+                    onChangeCheck(e.target.checked, -1);
+                  }}
+                />
+              </th>
+            )}
+            {isNoView && (
+              <th className={fixedColumns.includes("#") ? "fixed" : ""}>#</th>
+            )}
+            {columns.map((headerColumn) => (
+              <th
+                key={headerColumn.key}
+                className={
+                  fixedColumns.includes(headerColumn.key) ? "fixed" : ""
+                }
+              >
+                {headerColumn.title}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dataSources
+            .slice(currentPage * pageSize, currentPage * pageSize + pageSize)
+            .map((dataSource, dataIndex) => (
+              <tr key={`cell-${dataIndex}`}>
+                {checkboxSelection && (
+                  <td
+                    className={fixedColumns.includes("checkbox") ? "fixed" : ""}
+                  >
+                    <input
+                      type={"checkbox"}
+                      checked={checked.includes(
                         currentPage * pageSize + dataIndex
-                      );
-                    }}
-                  />
-                </td>
-              )}
-              {isNoView && <td>{currentPage * pageSize + dataIndex + 1}</td>}
-              {columns.map((dataColumn) => (
-                <td>
-                  {dataColumn.render
-                    ? dataColumn.render(dataSource[dataColumn.key])
-                    : dataSource[dataColumn.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
+                      )}
+                      onChange={(e) => {
+                        onChangeCheck(
+                          e.target.checked,
+                          currentPage * pageSize + dataIndex
+                        );
+                      }}
+                    />
+                  </td>
+                )}
+                {isNoView && (
+                  <td className={fixedColumns.includes("#") ? "fixed" : ""}>
+                    {currentPage * pageSize + dataIndex + 1}
+                  </td>
+                )}
+                {columns.map((dataColumn, columnIndex) => (
+                  <td
+                    key={`cell-${dataIndex}-${columnIndex}`}
+                    className={
+                      fixedColumns.includes(dataColumn.key) ? "fixed" : ""
+                    }
+                  >
+                    {dataColumn.render
+                      ? dataColumn.render(dataSource[dataColumn.key])
+                      : dataSource[dataColumn.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+        </tbody>
       </table>
       <ul>
         {Array.from(Array(pageMax).keys()).map((index) => (

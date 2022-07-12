@@ -66,6 +66,7 @@ function App() {
         checkboxSelection={true}
         isNoView={true}
         pageSize={10}
+        fixedColumns={["checkbox", "#"]}
         onChangeCheck={onChangeCheck}
       />
     </div>
